@@ -13,6 +13,7 @@ import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
 import DashboardPage from "@/pages/DashboardPage";
 import AccountsPage from "@/pages/AccountsPage";
+import AccountDetailPage from "@/pages/AccountDetailPage";
 import CampaignsPage from "@/pages/CampaignsPage";
 import NotFound from "@/pages/NotFound";
 import UserSettingsPage from "./pages/UserSettingsPage";
@@ -36,6 +37,7 @@ const App = () => (
               {/* Protected routes */}
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/dashboard/accounts" element={<AccountsPage />} />
+              <Route path="/dashboard/accounts/:accountId" element={<AccountDetailPage />} />
               <Route path="/dashboard/campaigns" element={<CampaignsPage />} />
               <Route path="/dashboard/settings" element={<UserSettingsPage />} />
               

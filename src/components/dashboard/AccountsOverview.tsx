@@ -24,8 +24,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import AccountDetailsModal from "./AccountsDetailsModal";
-import SyncProgressModal from "./SyncProgressModal";
+
 
 const AccountsOverview = () => {
   const [accounts, setAccounts] = useState<GoogleAdsAccount[]>([]);
