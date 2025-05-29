@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -25,36 +25,37 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 
-
 const AccountsOverview = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const [accounts, setAccounts] = useState<GoogleAdsAccount[]>([]);
   const [expandedMccAccounts, setExpandedMccAccounts] = useState<{
     [key: string]: boolean;
   }>({});
   const [loading, setLoading] = useState<boolean>(true);
-
-  const location = useLocation();
   const [showConnectedMessage, setShowConnectedMessage] = useState(false);
+
+  const handleViewDetails = (accountId: string) => {
+    navigate(`/dashboard/accounts/${accountId}`);
+  };
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get("connected") === "true") {
       setShowConnectedMessage(true);
-      // Opción: ocultar el mensaje tras 5s
       setTimeout(() => setShowConnectedMessage(false), 5000);
     }
   }, [location.search]);
 
-
   const fetchAccounts = async () => {
     try {
       const response = await fetch("https://pwi.es/api/google-accounts", {
-        credentials: "include", // si usas cookies para autenticación
+        credentials: "include",
       });
       if (!response.ok) throw new Error("Error al obtener cuentas");
       const data = await response.json();
       setAccounts(data.accounts || []);
-
     } catch (error) {
       console.error("Error cargando cuentas:", error);
     } finally {
@@ -74,9 +75,7 @@ const AccountsOverview = () => {
     console.log(`Sincronizando cuenta ${accountId}...`);
     setAccounts((prev) =>
       prev.map((a) =>
-        a.id === accountId
-          ? { ...a, lastSyncedAt: new Date().toISOString() }
-          : a
+        a.id === accountId ? { ...a, lastSyncedAt: new Date().toISOString() } : a
       )
     );
   };
@@ -130,16 +129,17 @@ const AccountsOverview = () => {
               icon={<Building className="h-5 w-5 mr-2" />}
               accounts={mainAccounts}
               onSync={handleSyncAccount}
+              onViewDetails={handleViewDetails}
             />
           )}
           {mccAccounts.length > 0 && (
             <MccGroup
               mccAccounts={mccAccounts}
-              subAccounts={accounts}
               expandedMccAccounts={expandedMccAccounts}
               onToggleExpand={toggleMccExpand}
               onSync={handleSyncAccount}
               getSubAccounts={getSubAccounts}
+              onViewDetails={handleViewDetails}
             />
           )}
           {accounts.length === 0 && (
@@ -152,17 +152,18 @@ const AccountsOverview = () => {
             title="Cuentas Estándar"
             accounts={mainAccounts}
             onSync={handleSyncAccount}
+            onViewDetails={handleViewDetails}
           />
         </TabsContent>
 
         <TabsContent value="mcc">
           <MccGroup
             mccAccounts={mccAccounts}
-            subAccounts={accounts}
             expandedMccAccounts={expandedMccAccounts}
             onToggleExpand={toggleMccExpand}
             onSync={handleSyncAccount}
             getSubAccounts={getSubAccounts}
+            onViewDetails={handleViewDetails}
           />
         </TabsContent>
       </Tabs>
@@ -175,11 +176,13 @@ const AccountGroup = ({
   icon,
   accounts,
   onSync,
+  onViewDetails,
 }: {
   title: string;
   icon?: React.ReactNode;
   accounts: GoogleAdsAccount[];
   onSync: (accountId: string) => void;
+  onViewDetails: (accountId: string) => void;
 }) => (
   <div className="space-y-4">
     <h3 className="text-lg font-medium flex items-center">
@@ -188,7 +191,12 @@ const AccountGroup = ({
     </h3>
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       {accounts.map((account) => (
-        <AccountCard key={account.id} account={account} onSync={onSync} />
+        <AccountCard
+          key={account.id}
+          account={account}
+          onSync={onSync}
+          onViewDetails={onViewDetails}
+        />
       ))}
     </div>
   </div>
@@ -196,18 +204,18 @@ const AccountGroup = ({
 
 const MccGroup = ({
   mccAccounts,
-  subAccounts,
   expandedMccAccounts,
   onToggleExpand,
   onSync,
   getSubAccounts,
+  onViewDetails,
 }: {
   mccAccounts: GoogleAdsAccount[];
-  subAccounts: GoogleAdsAccount[];
   expandedMccAccounts: { [key: string]: boolean };
   onToggleExpand: (accountId: string) => void;
   onSync: (accountId: string) => void;
   getSubAccounts: (mccId: string) => GoogleAdsAccount[];
+  onViewDetails: (accountId: string) => void;
 }) => (
   <div className="space-y-6">
     {mccAccounts.map((mcc) => {
@@ -259,7 +267,12 @@ const MccGroup = ({
               {subs.length > 0 ? (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {subs.map((sub) => (
-                    <AccountCard key={sub.id} account={sub} onSync={onSync} />
+                    <AccountCard
+                      key={sub.id}
+                      account={sub}
+                      onSync={onSync}
+                      onViewDetails={onViewDetails}
+                    />
                   ))}
                 </div>
               ) : (
@@ -278,9 +291,11 @@ const MccGroup = ({
 const AccountCard = ({
   account,
   onSync,
+  onViewDetails,
 }: {
   account: GoogleAdsAccount;
   onSync: (accountId: string) => void;
+  onViewDetails: (accountId: string) => void;
 }) => (
   <Card className="overflow-hidden">
     <CardHeader
@@ -318,18 +333,16 @@ const AccountCard = ({
       </div>
     </CardContent>
     <CardFooter className="flex justify-between">
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => onSync(account.id)}
-      >
+      <Button variant="outline" size="sm" onClick={() => onSync(account.id)}>
         <RefreshCw className="h-4 w-4 mr-1" />
         Sincronizar
       </Button>
+
       <Button
         variant="ghost"
         size="sm"
         className="text-adops-600 hover:text-adops-700 hover:bg-adops-50"
+        onClick={() => onViewDetails(account.id)}
       >
         Ver Detalles
       </Button>

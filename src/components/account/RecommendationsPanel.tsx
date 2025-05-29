@@ -1,15 +1,17 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, TrendingUp, Lightbulb, ArrowRight } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertTriangle, TrendingUp, Lightbulb, ArrowRight, X, History, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface RecommendationsProps {
   accountId: string;
 }
 
 type Priority = "high" | "medium" | "low";
+type Category = "bidding" | "ads" | "keywords" | "landing";
 
 interface Recommendation {
   id: string;
@@ -17,18 +19,23 @@ interface Recommendation {
   description: string;
   priority: Priority;
   impact: string;
-  category: string;
+  category: Category;
 }
 
 const RecommendationsPanel = ({ accountId }: RecommendationsProps) => {
-  const recommendations: Recommendation[] = [
+  const [dismissedRecommendations, setDismissedRecommendations] = useState<string[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [priorityFilter, setPriorityFilter] = useState<string>("all");
+
+  const allRecommendations: Recommendation[] = [
     {
       id: "1",
       title: "Optimizar pujas en campañas de búsqueda",
       description: "Detectamos campañas con pujas muy altas que están perdiendo impresiones por presupuesto limitado.",
       priority: "high",
       impact: "+25% impresiones",
-      category: "Pujas"
+      category: "bidding"
     },
     {
       id: "2", 
@@ -36,7 +43,7 @@ const RecommendationsPanel = ({ accountId }: RecommendationsProps) => {
       description: "Tus anuncios principales no tienen extensiones de enlace, lo que reduce el CTR potencial.",
       priority: "medium",
       impact: "+15% CTR",
-      category: "Extensiones"
+      category: "ads"
     },
     {
       id: "3",
@@ -44,7 +51,7 @@ const RecommendationsPanel = ({ accountId }: RecommendationsProps) => {
       description: "Hay términos de búsqueda irrelevantes que están generando clics sin conversión.",
       priority: "high",
       impact: "-20% coste",
-      category: "Keywords"
+      category: "keywords"
     },
     {
       id: "4",
@@ -52,17 +59,53 @@ const RecommendationsPanel = ({ accountId }: RecommendationsProps) => {
       description: "Algunas páginas de destino tienen velocidades de carga lentas afectando el Quality Score.",
       priority: "medium",
       impact: "+10% Quality Score",
-      category: "Landing Pages"
+      category: "landing"
     },
     {
       id: "5",
-      title: "Ajustar segmentación geográfica",
-      description: "Hay ubicaciones con bajo rendimiento que consumen presupuesto sin generar conversiones.",
+      title: "Reducir pujas en palabras de bajo rendimiento",
+      description: "Hay keywords con CPC alto y baja tasa de conversión que están consumiendo presupuesto.",
       priority: "low",
-      impact: "+8% ROAS",
-      category: "Segmentación"
+      impact: "-15% coste",
+      category: "bidding"
+    },
+    {
+      id: "6",
+      title: "Mejorar textos de anuncios",
+      description: "Los anuncios con menor CTR pueden beneficiarse de mensajes más llamativos.",
+      priority: "medium",
+      impact: "+12% CTR",
+      category: "ads"
+    },
+    {
+      id: "7",
+      title: "Expandir lista de palabras clave",
+      description: "Encontramos oportunidades de keywords de cola larga con buen potencial.",
+      priority: "low",
+      impact: "+18% tráfico",
+      category: "keywords"
+    },
+    {
+      id: "8",
+      title: "Optimizar velocidad de carga",
+      description: "Varias landing pages tardan más de 3 segundos en cargar completamente.",
+      priority: "high",
+      impact: "+20% conversiones",
+      category: "landing"
     }
   ];
+
+  const filteredRecommendations = allRecommendations
+    .filter(rec => !dismissedRecommendations.includes(rec.id))
+    .filter(rec => categoryFilter === "all" || rec.category === categoryFilter)
+    .filter(rec => priorityFilter === "all" || rec.priority === priorityFilter);
+
+  const itemsPerPage = 4;
+  const totalPages = Math.ceil(filteredRecommendations.length / itemsPerPage);
+  const currentRecommendations = filteredRecommendations.slice(
+    currentIndex * itemsPerPage,
+    (currentIndex + 1) * itemsPerPage
+  );
 
   const getPriorityIcon = (priority: Priority) => {
     switch (priority) {
@@ -86,92 +129,190 @@ const RecommendationsPanel = ({ accountId }: RecommendationsProps) => {
     }
   };
 
-  const groupedRecommendations = {
-    high: recommendations.filter(r => r.priority === "high"),
-    medium: recommendations.filter(r => r.priority === "medium"),
-    low: recommendations.filter(r => r.priority === "low")
+  const getCategoryIcon = (category: Category) => {
+    switch (category) {
+      case "bidding":
+        return "📈";
+      case "ads":
+        return "📢";
+      case "keywords":
+        return "🔍";
+      case "landing":
+        return "🧭";
+    }
   };
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold mb-4">Recomendaciones de IA</h2>
-        
-        {/* Resumen */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <Card className="border-red-200 bg-red-50">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-red-800">Prioridad Alta</p>
-                  <p className="text-2xl font-bold text-red-900">{groupedRecommendations.high.length}</p>
-                </div>
-                <AlertTriangle className="h-8 w-8 text-red-500" />
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="border-yellow-200 bg-yellow-50">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-yellow-800">Prioridad Media</p>
-                  <p className="text-2xl font-bold text-yellow-900">{groupedRecommendations.medium.length}</p>
-                </div>
-                <TrendingUp className="h-8 w-8 text-yellow-500" />
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="border-blue-200 bg-blue-50">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-blue-800">Prioridad Baja</p>
-                  <p className="text-2xl font-bold text-blue-900">{groupedRecommendations.low.length}</p>
-                </div>
-                <Lightbulb className="h-8 w-8 text-blue-500" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+  const getCategoryTitle = (category: Category) => {
+    switch (category) {
+      case "bidding":
+        return "Rendimiento de pujas";
+      case "ads":
+        return "Anuncios";
+      case "keywords":
+        return "Palabras clave";
+      case "landing":
+        return "Landing Pages";
+    }
+  };
 
-      {/* Lista de recomendaciones */}
-      <div className="grid gap-4">
-        {recommendations.map((rec) => (
-          <Card key={rec.id} className="hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-2">
-                  {getPriorityIcon(rec.priority)}
-                  <CardTitle className="text-lg">{rec.title}</CardTitle>
-                  <Badge variant="outline" className={getPriorityColor(rec.priority)}>
-                    {rec.priority === "high" ? "Alta" : rec.priority === "medium" ? "Media" : "Baja"}
-                  </Badge>
+  const handleDismiss = (recommendationId: string) => {
+    setDismissedRecommendations(prev => [...prev, recommendationId]);
+  };
+
+  const handleViewHistory = () => {
+    console.log("Ver historial de mejoras aplicadas");
+  };
+
+  const handleNext = () => {
+    if (currentIndex < totalPages - 1) {
+      setCurrentIndex(currentIndex + 1);
+    }
+  };
+
+  const handlePrev = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex(currentIndex - 1);
+    }
+  };
+
+  if (filteredRecommendations.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-xl font-semibold">Recomendaciones de IA</CardTitle>
+            <Button variant="outline" size="sm" onClick={handleViewHistory}>
+              <History className="h-4 w-4 mr-2" />
+              Ver historial
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">¡Excelente! No hay recomendaciones pendientes.</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-xl font-semibold">Recomendaciones de IA</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              {filteredRecommendations.length} recomendaciones activas
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={handleViewHistory}>
+            <History className="h-4 w-4 mr-2" />
+            Ver historial
+          </Button>
+        </div>
+        
+        {/* Filtros */}
+        <div className="flex gap-4 mt-4">
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Filtrar por categoría" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas las categorías</SelectItem>
+              <SelectItem value="bidding">📈 Rendimiento de pujas</SelectItem>
+              <SelectItem value="ads">📢 Anuncios</SelectItem>
+              <SelectItem value="keywords">🔍 Palabras clave</SelectItem>
+              <SelectItem value="landing">🧭 Landing Pages</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Filtrar por prioridad" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas las prioridades</SelectItem>
+              <SelectItem value="high">Alta prioridad</SelectItem>
+              <SelectItem value="medium">Media prioridad</SelectItem>
+              <SelectItem value="low">Baja prioridad</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </CardHeader>
+      
+      <CardContent>
+        <div className="relative">
+          {/* Carrusel */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {currentRecommendations.map((rec) => (
+              <div key={rec.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow relative">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute top-2 right-2 h-6 w-6 p-0 hover:bg-red-100"
+                  onClick={() => handleDismiss(rec.id)}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+                
+                <div className="flex items-start gap-2 mb-3 pr-8">
+                  <span className="text-lg">{getCategoryIcon(rec.category)}</span>
+                  <div className="flex-1">
+                    <h4 className="font-medium text-sm line-clamp-2">{rec.title}</h4>
+                    <div className="flex gap-2 mt-2">
+                      {getPriorityIcon(rec.priority)}
+                      <Badge variant="outline" className={`text-xs ${getPriorityColor(rec.priority)}`}>
+                        {rec.priority === "high" ? "Alta" : rec.priority === "medium" ? "Media" : "Baja"}
+                      </Badge>
+                    </div>
+                  </div>
                 </div>
-                <Badge variant="secondary">{rec.category}</Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground mb-4">{rec.description}</p>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">Impacto estimado:</span>
-                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                
+                <p className="text-xs text-muted-foreground mb-3 line-clamp-3">{rec.description}</p>
+                
+                <div className="flex items-center justify-between">
+                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
                     {rec.impact}
                   </Badge>
+                  <Button size="sm" className="h-7 text-xs px-3">
+                    Aplicar
+                    <ArrowRight className="h-3 w-3 ml-1" />
+                  </Button>
                 </div>
-                <Button size="sm">
-                  Aplicar recomendación
-                  <ArrowRight className="h-4 w-4 ml-1" />
-                </Button>
               </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
+            ))}
+          </div>
+          
+          {/* Controles de navegación */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-6">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePrev}
+                disabled={currentIndex === 0}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              
+              <span className="text-sm text-muted-foreground">
+                {currentIndex + 1} de {totalPages}
+              </span>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNext}
+                disabled={currentIndex === totalPages - 1}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 

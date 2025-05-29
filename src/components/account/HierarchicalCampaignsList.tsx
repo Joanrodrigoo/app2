@@ -1,12 +1,12 @@
-
 import React, { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, ChevronRight, ExternalLink } from "lucide-react";
+import { Search, ChevronRight, ExternalLink, ArrowUp, ArrowDown } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { NavigationState } from "@/pages/AccountDetailPage";
+import AdDetailsModal from "./AdDetailsModal";
 
 interface HierarchicalCampaignsListProps {
   accountId: string;
@@ -15,8 +15,15 @@ interface HierarchicalCampaignsListProps {
   onNavigationChange: (navigation: NavigationState) => void;
 }
 
+type SortField = string;
+type SortOrder = 'asc' | 'desc';
+
 const HierarchicalCampaignsList = ({ accountId, dateRange, navigation, onNavigationChange }: HierarchicalCampaignsListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedAd, setSelectedAd] = useState<any>(null);
+  const [isAdModalOpen, setIsAdModalOpen] = useState(false);
+  const [sortField, setSortField] = useState<SortField>("");
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
 
   // Mock data - campañas
   const campaigns = [
@@ -146,6 +153,40 @@ const HierarchicalCampaignsList = ({ accountId, dateRange, navigation, onNavigat
     }
   ];
 
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) return null;
+    return sortOrder === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />;
+  };
+
+  const sortData = (data: any[]) => {
+    if (!sortField) return data;
+    
+    return [...data].sort((a, b) => {
+      let aVal = a[sortField];
+      let bVal = b[sortField];
+      
+      if (typeof aVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = bVal.toLowerCase();
+      }
+      
+      if (sortOrder === 'asc') {
+        return aVal > bVal ? 1 : -1;
+      } else {
+        return aVal < bVal ? 1 : -1;
+      }
+    });
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "ENABLED":
@@ -180,16 +221,34 @@ const HierarchicalCampaignsList = ({ accountId, dateRange, navigation, onNavigat
     return <Badge className="bg-red-500">{score}</Badge>;
   };
 
+  const handleAdClick = (ad: any) => {
+    setSelectedAd(ad);
+    setIsAdModalOpen(true);
+  };
+
+  const SortableHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
+    <TableHead 
+      className="cursor-pointer hover:bg-muted/50 select-none"
+      onClick={() => handleSort(field)}
+    >
+      <div className="flex items-center gap-1">
+        {children}
+        {getSortIcon(field)}
+      </div>
+    </TableHead>
+  );
+
   // Renderizar campañas
   if (navigation.level === 'campaigns') {
     const filteredCampaigns = campaigns.filter(campaign =>
       campaign.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
+    
+    const sortedCampaigns = sortData(filteredCampaigns);
 
     return (
       <div className="space-y-4">
         <div className="flex justify-between items-center">
-          <h3 className="text-lg font-medium">Campañas ({filteredCampaigns.length})</h3>
           <div className="relative w-64">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
@@ -201,52 +260,52 @@ const HierarchicalCampaignsList = ({ accountId, dateRange, navigation, onNavigat
           </div>
         </div>
 
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Campaña</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead>Tipo</TableHead>
-              <TableHead>Presupuesto</TableHead>
-              <TableHead>Gasto</TableHead>
-              <TableHead>Impresiones</TableHead>
-              <TableHead>Clics</TableHead>
-              <TableHead>CTR</TableHead>
-              <TableHead>CPC</TableHead>
-              <TableHead>Conversiones</TableHead>
-              <TableHead></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredCampaigns.map((campaign) => (
-              <TableRow key={campaign.id} className="hover:bg-muted/50">
-                <TableCell className="font-medium">{campaign.name}</TableCell>
-                <TableCell>{getStatusBadge(campaign.status)}</TableCell>
-                <TableCell>{getTypeBadge(campaign.type)}</TableCell>
-                <TableCell>{formatCurrency(campaign.budget)}/día</TableCell>
-                <TableCell>{formatCurrency(campaign.spend)}</TableCell>
-                <TableCell>{campaign.impressions.toLocaleString()}</TableCell>
-                <TableCell>{campaign.clicks.toLocaleString()}</TableCell>
-                <TableCell>{campaign.ctr}%</TableCell>
-                <TableCell>{formatCurrency(campaign.cpc)}</TableCell>
-                <TableCell>{campaign.conversions}</TableCell>
-                <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onNavigationChange({
-                      level: 'adgroups',
-                      selectedCampaign: campaign.id,
-                      campaignName: campaign.name
-                    })}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </TableCell>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <SortableHeader field="name">Campaña</SortableHeader>
+                <SortableHeader field="status">Estado</SortableHeader>
+                <SortableHeader field="type">Tipo</SortableHeader>
+                <SortableHeader field="budget">Presupuesto</SortableHeader>
+                <SortableHeader field="spend">Gasto</SortableHeader>
+                <SortableHeader field="impressions">Impresiones</SortableHeader>
+                <SortableHeader field="clicks">Clics</SortableHeader>
+                <SortableHeader field="ctr">CTR</SortableHeader>
+                <SortableHeader field="cpc">CPC</SortableHeader>
+                <SortableHeader field="conversions">Conversiones</SortableHeader>
+                <TableHead></TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {sortedCampaigns.map((campaign) => (
+                <TableRow 
+                  key={campaign.id} 
+                  className="hover:bg-muted/50 cursor-pointer"
+                  onClick={() => onNavigationChange({
+                    level: 'adgroups',
+                    selectedCampaign: campaign.id,
+                    campaignName: campaign.name
+                  })}
+                >
+                  <TableCell className="font-medium">{campaign.name}</TableCell>
+                  <TableCell>{getStatusBadge(campaign.status)}</TableCell>
+                  <TableCell>{getTypeBadge(campaign.type)}</TableCell>
+                  <TableCell>{formatCurrency(campaign.budget)}/día</TableCell>
+                  <TableCell>{formatCurrency(campaign.spend)}</TableCell>
+                  <TableCell>{campaign.impressions.toLocaleString()}</TableCell>
+                  <TableCell>{campaign.clicks.toLocaleString()}</TableCell>
+                  <TableCell>{campaign.ctr}%</TableCell>
+                  <TableCell>{formatCurrency(campaign.cpc)}</TableCell>
+                  <TableCell>{campaign.conversions}</TableCell>
+                  <TableCell>
+                    <ChevronRight className="h-4 w-4" />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     );
   }
@@ -256,11 +315,12 @@ const HierarchicalCampaignsList = ({ accountId, dateRange, navigation, onNavigat
     const filteredAdGroups = adGroups
       .filter(adGroup => adGroup.campaignId === navigation.selectedCampaign)
       .filter(adGroup => adGroup.name.toLowerCase().includes(searchTerm.toLowerCase()));
+      
+    const sortedAdGroups = sortData(filteredAdGroups);
 
     return (
       <div className="space-y-4">
         <div className="flex justify-between items-center">
-          <h3 className="text-lg font-medium">Grupos de Anuncios ({filteredAdGroups.length})</h3>
           <div className="relative w-64">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
@@ -272,54 +332,54 @@ const HierarchicalCampaignsList = ({ accountId, dateRange, navigation, onNavigat
           </div>
         </div>
 
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Grupo de Anuncios</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead>Puja</TableHead>
-              <TableHead>Gasto</TableHead>
-              <TableHead>Impresiones</TableHead>
-              <TableHead>Clics</TableHead>
-              <TableHead>CTR</TableHead>
-              <TableHead>CPC</TableHead>
-              <TableHead>Conversiones</TableHead>
-              <TableHead>Quality Score</TableHead>
-              <TableHead></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredAdGroups.map((adGroup) => (
-              <TableRow key={adGroup.id} className="hover:bg-muted/50">
-                <TableCell className="font-medium">{adGroup.name}</TableCell>
-                <TableCell>{getStatusBadge(adGroup.status)}</TableCell>
-                <TableCell>{formatCurrency(adGroup.bid)}</TableCell>
-                <TableCell>{formatCurrency(adGroup.spend)}</TableCell>
-                <TableCell>{adGroup.impressions.toLocaleString()}</TableCell>
-                <TableCell>{adGroup.clicks.toLocaleString()}</TableCell>
-                <TableCell>{adGroup.ctr}%</TableCell>
-                <TableCell>{formatCurrency(adGroup.cpc)}</TableCell>
-                <TableCell>{adGroup.conversions}</TableCell>
-                <TableCell>{getQualityScoreBadge(adGroup.qualityScore)}</TableCell>
-                <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onNavigationChange({
-                      level: 'ads',
-                      selectedCampaign: navigation.selectedCampaign,
-                      selectedAdGroup: adGroup.id,
-                      campaignName: navigation.campaignName,
-                      adGroupName: adGroup.name
-                    })}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </TableCell>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <SortableHeader field="name">Grupo de Anuncios</SortableHeader>
+                <SortableHeader field="status">Estado</SortableHeader>
+                <SortableHeader field="bid">Puja</SortableHeader>
+                <SortableHeader field="spend">Gasto</SortableHeader>
+                <SortableHeader field="impressions">Impresiones</SortableHeader>
+                <SortableHeader field="clicks">Clics</SortableHeader>
+                <SortableHeader field="ctr">CTR</SortableHeader>
+                <SortableHeader field="cpc">CPC</SortableHeader>
+                <SortableHeader field="conversions">Conversiones</SortableHeader>
+                <SortableHeader field="qualityScore">Quality Score</SortableHeader>
+                <TableHead></TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {sortedAdGroups.map((adGroup) => (
+                <TableRow 
+                  key={adGroup.id} 
+                  className="hover:bg-muted/50 cursor-pointer"
+                  onClick={() => onNavigationChange({
+                    level: 'ads',
+                    selectedCampaign: navigation.selectedCampaign,
+                    selectedAdGroup: adGroup.id,
+                    campaignName: navigation.campaignName,
+                    adGroupName: adGroup.name
+                  })}
+                >
+                  <TableCell className="font-medium">{adGroup.name}</TableCell>
+                  <TableCell>{getStatusBadge(adGroup.status)}</TableCell>
+                  <TableCell>{formatCurrency(adGroup.bid)}</TableCell>
+                  <TableCell>{formatCurrency(adGroup.spend)}</TableCell>
+                  <TableCell>{adGroup.impressions.toLocaleString()}</TableCell>
+                  <TableCell>{adGroup.clicks.toLocaleString()}</TableCell>
+                  <TableCell>{adGroup.ctr}%</TableCell>
+                  <TableCell>{formatCurrency(adGroup.cpc)}</TableCell>
+                  <TableCell>{adGroup.conversions}</TableCell>
+                  <TableCell>{getQualityScoreBadge(adGroup.qualityScore)}</TableCell>
+                  <TableCell>
+                    <ChevronRight className="h-4 w-4" />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     );
   }
@@ -332,11 +392,12 @@ const HierarchicalCampaignsList = ({ accountId, dateRange, navigation, onNavigat
         ad.headline1.toLowerCase().includes(searchTerm.toLowerCase()) ||
         ad.headline2.toLowerCase().includes(searchTerm.toLowerCase())
       );
+      
+    const sortedAds = sortData(filteredAds);
 
     return (
       <div className="space-y-4">
         <div className="flex justify-between items-center">
-          <h3 className="text-lg font-medium">Anuncios ({filteredAds.length})</h3>
           <div className="relative w-64">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
@@ -348,46 +409,63 @@ const HierarchicalCampaignsList = ({ accountId, dateRange, navigation, onNavigat
           </div>
         </div>
 
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[300px]">Anuncio</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead>Impresiones</TableHead>
-              <TableHead>Clics</TableHead>
-              <TableHead>CTR</TableHead>
-              <TableHead>CPC</TableHead>
-              <TableHead>Conversiones</TableHead>
-              <TableHead>URL Final</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredAds.map((ad) => (
-              <TableRow key={ad.id} className="hover:bg-muted/50">
-                <TableCell>
-                  <div className="space-y-1">
-                    <div className="font-medium text-blue-600">{ad.headline1}</div>
-                    <div className="font-medium text-blue-600">{ad.headline2}</div>
-                    <div className="text-sm text-muted-foreground">{ad.description}</div>
-                  </div>
-                </TableCell>
-                <TableCell>{getStatusBadge(ad.status)}</TableCell>
-                <TableCell>{ad.impressions.toLocaleString()}</TableCell>
-                <TableCell>{ad.clicks.toLocaleString()}</TableCell>
-                <TableCell>{ad.ctr}%</TableCell>
-                <TableCell>{formatCurrency(ad.cpc)}</TableCell>
-                <TableCell>{ad.conversions}</TableCell>
-                <TableCell>
-                  <Button variant="ghost" size="sm" asChild>
-                    <a href={ad.finalUrl} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  </Button>
-                </TableCell>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[300px]">Anuncio</TableHead>
+                <SortableHeader field="status">Estado</SortableHeader>
+                <SortableHeader field="impressions">Impresiones</SortableHeader>
+                <SortableHeader field="clicks">Clics</SortableHeader>
+                <SortableHeader field="ctr">CTR</SortableHeader>
+                <SortableHeader field="cpc">CPC</SortableHeader>
+                <SortableHeader field="conversions">Conversiones</SortableHeader>
+                <TableHead>URL Final</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {sortedAds.map((ad) => (
+                <TableRow 
+                  key={ad.id} 
+                  className="hover:bg-muted/50 cursor-pointer"
+                  onClick={() => handleAdClick(ad)}
+                >
+                  <TableCell>
+                    <div className="space-y-1">
+                      <div className="font-medium text-blue-600">{ad.headline1}</div>
+                      <div className="font-medium text-blue-600">{ad.headline2}</div>
+                      <div className="text-sm text-muted-foreground">{ad.description}</div>
+                    </div>
+                  </TableCell>
+                  <TableCell>{getStatusBadge(ad.status)}</TableCell>
+                  <TableCell>{ad.impressions.toLocaleString()}</TableCell>
+                  <TableCell>{ad.clicks.toLocaleString()}</TableCell>
+                  <TableCell>{ad.ctr}%</TableCell>
+                  <TableCell>{formatCurrency(ad.cpc)}</TableCell>
+                  <TableCell>{ad.conversions}</TableCell>
+                  <TableCell>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      asChild
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <a href={ad.finalUrl} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+
+        <AdDetailsModal 
+          ad={selectedAd}
+          isOpen={isAdModalOpen}
+          onClose={() => setIsAdModalOpen(false)}
+        />
       </div>
     );
   }

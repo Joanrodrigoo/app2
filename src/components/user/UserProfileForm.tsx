@@ -1,5 +1,4 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,20 +9,62 @@ const UserProfileForm = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
-    name: "John Doe",
-    email: "john@example.com",
-    company: "Mi Empresa",
-    phone: "+34 123 456 789",
+    name: "",
+    email: "",
+    phone: "",
   });
+
+  // 🔄 Cargar datos del usuario al montar el componente
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const response = await fetch("https://pwi.es/api/auth/profile", {
+          method: "GET",
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          throw new Error("No se pudo obtener el perfil");
+        }
+
+        const data = await response.json();
+        setFormData({
+          name: data.name || "",
+          email: data.email || "",
+          phone: data.phone || "",
+        });
+      } catch (error) {
+        toast({
+          title: "Error al cargar el perfil",
+          description: (error as Error).message,
+          variant: "destructive",
+        });
+      }
+    };
+
+    fetchUserData();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      // Aquí iría la lógica para actualizar el perfil
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulación
-      
+      const response = await fetch("https://pwi.es/api/auth/profile", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Error al actualizar el perfil");
+      }
+
       toast({
         title: "Perfil actualizado",
         description: "Tu información personal ha sido actualizada correctamente.",
@@ -31,7 +72,7 @@ const UserProfileForm = () => {
     } catch (error) {
       toast({
         title: "Error",
-        description: "No se pudo actualizar tu perfil. Inténtalo de nuevo.",
+        description: (error as Error).message,
         variant: "destructive",
       });
     } finally {
@@ -60,7 +101,7 @@ const UserProfileForm = () => {
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="email">Correo electrónico</Label>
               <Input
@@ -71,17 +112,8 @@ const UserProfileForm = () => {
                 required
               />
             </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="company">Empresa</Label>
-              <Input
-                id="company"
-                value={formData.company}
-                onChange={(e) => handleInputChange("company", e.target.value)}
-              />
-            </div>
-            
-            <div className="space-y-2">
+
+            <div className="space-y-2 md:col-span-2">
               <Label htmlFor="phone">Teléfono</Label>
               <Input
                 id="phone"

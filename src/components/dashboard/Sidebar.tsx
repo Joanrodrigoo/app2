@@ -10,9 +10,9 @@ const Sidebar = ({ className }: SidebarProps) => {
   const location = useLocation();
   
   return (
-    <div className={cn("pb-12 bg-sidebar text-sidebar-foreground h-screen", className)}>
-      <div className="space-y-4 py-4">
-        <div className="px-3 py-2">
+    <div className={cn("pb-12 bg-sidebar text-sidebar-foreground h-screen sticky top-0 overflow-y-auto", className)}>
+      <div className="space-y-4 py-4 h-full flex flex-col">
+        <div className="px-3 py-2 flex-1">
           <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
             Dashboard
           </h2>
@@ -50,7 +50,7 @@ const Sidebar = ({ className }: SidebarProps) => {
           </div>
         </div>
         
-        <div className="px-3 py-2">
+        <div className="px-3 py-2 flex-1">
           <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
             Google Ads
           </h2>
@@ -75,7 +75,7 @@ const Sidebar = ({ className }: SidebarProps) => {
           </div>
         </div>
         
-        <div className="px-3 py-2">
+        <div className="px-3 py-2 mt-auto">
           <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
             Settings
           </h2>

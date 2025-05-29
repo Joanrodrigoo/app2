@@ -20,7 +20,7 @@ const DashboardPage = () => {
         
         <div className="space-y-4">
           <h2 className="text-2xl font-bold">Recent Campaigns</h2>
-          <CampaignsTable customerId="8849937100" />
+          
         </div>
       </div>
     </DashboardLayout>

@@ -2,8 +2,7 @@
 import React, { useState } from "react";
 import { useParams } from "react-router-dom";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, ArrowLeft } from "lucide-react";
@@ -31,7 +30,7 @@ const AccountDetailPage = () => {
   const account = {
     id: accountId,
     name: "Mi Cuenta Principal",
-    accountId: "123-456-7890",
+    accountId: accountId,
     type: "STANDARD",
     status: "Active",
     currency: "EUR"
@@ -89,20 +88,20 @@ const AccountDetailPage = () => {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-3xl font-bold">{account.name}</h1>
-            <div className="flex items-center gap-2 mt-2">
-              <span className="text-muted-foreground">ID: {account.accountId}</span>
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl sm:text-3xl font-bold truncate">{account.name}</h1>
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              <span className="text-muted-foreground text-sm">ID: {account.accountId}</span>
               <Badge variant="outline">{account.type}</Badge>
               <Badge variant="default" className="bg-green-500">
                 {account.status}
               </Badge>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
             <DateRangeFilter dateRange={dateRange} onChange={setDateRange} />
-            <Button onClick={handleSync} variant="outline">
+            <Button onClick={handleSync} variant="outline" className="w-full sm:w-auto">
               <RefreshCw className="h-4 w-4 mr-2" />
               Sincronizar
             </Button>
@@ -112,42 +111,31 @@ const AccountDetailPage = () => {
         {/* Métricas principales */}
         <AccountMetrics accountId={accountId!} dateRange={dateRange} />
 
-        {/* Panel de recomendaciones */}
+        {/* Recomendaciones de IA */}
         <RecommendationsPanel accountId={accountId!} />
 
-        {/* Tabs para navegar por la estructura */}
-        <Tabs defaultValue="hierarchy" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="hierarchy">Estructura de Campañas</TabsTrigger>
-            <TabsTrigger value="keywords">Keywords</TabsTrigger>
-            <TabsTrigger value="audiences">Segmentación</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="hierarchy" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Estructura Jerárquica</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {renderBreadcrumb()}
-                <HierarchicalCampaignsList 
-                  accountId={accountId!} 
-                  dateRange={dateRange}
-                  navigation={navigation}
-                  onNavigationChange={handleNavigationChange}
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="keywords" className="mt-6">
-            <KeywordsList accountId={accountId!} dateRange={dateRange} />
-          </TabsContent>
-          
-          <TabsContent value="audiences" className="mt-6">
-            <AudiencesList accountId={accountId!} dateRange={dateRange} />
-          </TabsContent>
-        </Tabs>
+        {/* Estructura de campañas */}
+        <Card>
+          <CardContent className="overflow-x-auto pt-6">
+            {renderBreadcrumb()}
+            <HierarchicalCampaignsList 
+              accountId={accountId!} 
+              dateRange={dateRange}
+              navigation={navigation}
+              onNavigationChange={handleNavigationChange}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Keywords y Segmentación en una columna */}
+        <div className="space-y-6">
+          <KeywordsList 
+            accountId={accountId!} 
+            dateRange={dateRange}
+            navigation={navigation}
+          />
+          <AudiencesList accountId={accountId!} dateRange={dateRange} />
+        </div>
       </div>
     </DashboardLayout>
   );
