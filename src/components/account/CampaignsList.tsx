@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -8,62 +7,30 @@ import { Input } from "@/components/ui/input";
 import { Search, ChevronDown, ChevronRight } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
-interface CampaignsListProps {
-  accountId: string;
-  dateRange: { from: Date; to: Date };
+interface Campaign {
+  id: string;
+  name: string;
+  status: string;
+  type: string;
+  budget: number;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  conversions: number;
+  ctr: number;
+  cpc: number;
+  conversionRate: number;
 }
 
-const CampaignsList = ({ accountId, dateRange }: CampaignsListProps) => {
+interface CampaignsListProps {
+  campaigns: Campaign[];
+}
+
+const CampaignsList = ({ campaigns }: CampaignsListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedCampaign, setExpandedCampaign] = useState<string | null>(null);
 
-  // Mock data
-  const campaigns = [
-    {
-      id: "1",
-      name: "Campaña Verano 2024",
-      status: "ENABLED",
-      type: "SEARCH",
-      budget: 150,
-      spend: 142.50,
-      impressions: 45678,
-      clicks: 1234,
-      conversions: 45,
-      ctr: 2.7,
-      cpc: 0.12,
-      conversionRate: 3.6
-    },
-    {
-      id: "2", 
-      name: "Display - Awareness",
-      status: "ENABLED",
-      type: "DISPLAY",
-      budget: 300,
-      spend: 287.30,
-      impressions: 123456,
-      clicks: 2345,
-      conversions: 23,
-      ctr: 1.9,
-      cpc: 0.12,
-      conversionRate: 0.98
-    },
-    {
-      id: "3",
-      name: "Shopping - Productos",
-      status: "PAUSED",
-      type: "SHOPPING",
-      budget: 200,
-      spend: 0,
-      impressions: 0,
-      clicks: 0,
-      conversions: 0,
-      ctr: 0,
-      cpc: 0,
-      conversionRate: 0
-    }
-  ];
-
-  const filteredCampaigns = campaigns.filter(campaign =>
+  const filteredCampaigns = campaigns.filter((campaign) =>
     campaign.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -83,11 +50,11 @@ const CampaignsList = ({ accountId, dateRange }: CampaignsListProps) => {
   const getTypeBadge = (type: string) => {
     const colors = {
       SEARCH: "bg-blue-100 text-blue-800",
-      DISPLAY: "bg-purple-100 text-purple-800", 
+      DISPLAY: "bg-purple-100 text-purple-800",
       SHOPPING: "bg-green-100 text-green-800",
-      VIDEO: "bg-red-100 text-red-800"
+      VIDEO: "bg-red-100 text-red-800",
     };
-    
+
     return (
       <Badge variant="outline" className={colors[type as keyof typeof colors]}>
         {type}
@@ -136,9 +103,11 @@ const CampaignsList = ({ accountId, dateRange }: CampaignsListProps) => {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setExpandedCampaign(
-                        expandedCampaign === campaign.id ? null : campaign.id
-                      )}
+                      onClick={() =>
+                        setExpandedCampaign(
+                          expandedCampaign === campaign.id ? null : campaign.id
+                        )
+                      }
                     >
                       {expandedCampaign === campaign.id ? (
                         <ChevronDown className="h-4 w-4" />
@@ -158,7 +127,7 @@ const CampaignsList = ({ accountId, dateRange }: CampaignsListProps) => {
                   <TableCell>{formatCurrency(campaign.cpc)}</TableCell>
                   <TableCell>{campaign.conversions}</TableCell>
                 </TableRow>
-                
+
                 {expandedCampaign === campaign.id && (
                   <TableRow>
                     <TableCell colSpan={11} className="bg-muted/30">
@@ -171,11 +140,20 @@ const CampaignsList = ({ accountId, dateRange }: CampaignsListProps) => {
                           </div>
                           <div>
                             <span className="font-medium">Coste por conversión:</span>
-                            <p>{campaign.conversions > 0 ? formatCurrency(campaign.spend / campaign.conversions) : "N/A"}</p>
+                            <p>
+                              {campaign.conversions > 0
+                                ? formatCurrency(campaign.spend / campaign.conversions)
+                                : "N/A"}
+                            </p>
                           </div>
                           <div>
                             <span className="font-medium">Presupuesto utilizado:</span>
-                            <p>{campaign.budget > 0 ? Math.round((campaign.spend / campaign.budget) * 100) : 0}%</p>
+                            <p>
+                              {campaign.budget > 0
+                                ? Math.round((campaign.spend / campaign.budget) * 100)
+                                : 0}
+                              %
+                            </p>
                           </div>
                           <div>
                             <span className="font-medium">Estado optimización:</span>

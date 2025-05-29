@@ -1,12 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, ChevronLeft, ChevronRight, ArrowUp, ArrowDown } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, Loader2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { NavigationState } from "@/pages/AccountDetailPage";
+import { googleAdsApi } from "@/services/api"; // Ajusta la ruta según tu estructura
 
 interface KeywordsListProps {
   accountId: string;
@@ -17,106 +18,92 @@ interface KeywordsListProps {
 type SortField = string;
 type SortOrder = 'asc' | 'desc';
 
+interface Keyword {
+  customer_id: string;
+  campaign_id: string;
+  ad_group_id: string;
+  criterion_id: string;
+  keyword_text: string;
+  match_type: string;
+  is_negative: boolean;
+  status: string;
+  impressions: number;
+  clicks: number;
+  ctr: number;
+  average_cpc_micros: number;
+  cost_micros: number;
+  conversions: number;
+  quality_score?: number;
+  creative_quality_score?: string;
+  post_click_quality_score?: string;
+  search_predicted_ctr?: string;
+}
+
+interface Campaign {
+  id: string;
+  name: string;
+  ad_groups: AdGroup[];
+}
+
+interface AdGroup {
+  ad_group_id: string;
+  ad_group_name: string;
+  campaign_id: string;
+  keywords: Keyword[];
+}
+
 const KeywordsList = ({ accountId, dateRange, navigation }: KeywordsListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState<SortField>("");
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+  const [keywords, setKeywords] = useState<Keyword[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const itemsPerPage = 10;
 
-  // Mock data
-  const allKeywords = [
-    {
-      id: "1",
-      keyword: "camisetas verano",
-      matchType: "BROAD",
-      campaignId: "1",
-      adGroupId: "1",
-      campaignName: "Campaña Verano 2024",
-      adGroupName: "Productos Verano - Camisetas",
-      bid: 0.85,
-      impressions: 12500,
-      clicks: 234,
-      conversions: 12,
-      cost: 45.30,
-      ctr: 1.87,
-      cpc: 0.19,
-      conversionRate: 5.13,
-      qualityScore: 7
-    },
-    {
-      id: "2",
-      keyword: "shorts hombre",
-      matchType: "PHRASE",
-      campaignId: "1", 
-      adGroupId: "2",
-      campaignName: "Campaña Verano 2024",
-      adGroupName: "Productos Verano - Shorts",
-      bid: 0.75,
-      impressions: 8900,
-      clicks: 445,
-      conversions: 28,
-      cost: 67.20,
-      ctr: 5.0,
-      cpc: 0.15,
-      conversionRate: 6.29,
-      qualityScore: 8
-    },
-    {
-      id: "3",
-      keyword: "[ropa casual]",
-      matchType: "EXACT",
-      campaignId: "2",
-      adGroupId: "3", 
-      campaignName: "Display - Awareness",
-      adGroupName: "Awareness - General",
-      bid: 0.05,
-      impressions: 45600,
-      clicks: 567,
-      conversions: 5,
-      cost: 123.45,
-      ctr: 1.24,
-      cpc: 0.22,
-      conversionRate: 0.88,
-      qualityScore: 6
-    },
-    {
-      id: "4",
-      keyword: "comprar camisetas",
-      matchType: "BROAD",
-      campaignId: "1",
-      adGroupId: "1",
-      campaignName: "Campaña Verano 2024", 
-      adGroupName: "Productos Verano - Camisetas",
-      bid: 1.20,
-      impressions: 5670,
-      clicks: 89,
-      conversions: 3,
-      cost: 12.50,
-      ctr: 1.57,
-      cpc: 0.14,
-      conversionRate: 3.37,
-      qualityScore: 5
-    },
-    {
-      id: "5",
-      keyword: "shorts deportivos",
-      matchType: "PHRASE", 
-      campaignId: "1",
-      adGroupId: "2",
-      campaignName: "Campaña Verano 2024",
-      adGroupName: "Productos Verano - Shorts",
-      bid: 0.90,
-      impressions: 7800,
-      clicks: 156,
-      conversions: 8,
-      cost: 23.40,
-      ctr: 2.0,
-      cpc: 0.15,
-      conversionRate: 5.13,
-      qualityScore: 7
-    }
-  ];
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const response = await googleAdsApi.getFullAccountData(accountId);
+        
+        if (response.success && response.data) {
+          const { campaigns: campaignsData } = response.data;
+          setCampaigns(campaignsData);
+          
+          // Extraer todas las keywords de todas las campañas y grupos de anuncios
+          const allKeywords: Keyword[] = [];
+          
+          campaignsData.forEach((campaign: Campaign) => {
+            campaign.ad_groups.forEach((adGroup: AdGroup) => {
+              adGroup.keywords.forEach((keyword: Keyword) => {
+                allKeywords.push({
+                  ...keyword,
+                  campaign_name: campaign.name,
+                  ad_group_name: adGroup.ad_group_name
+                } as any);
+              });
+            });
+          });
+          
+          setKeywords(allKeywords);
+        } else {
+          setError(response.error || "Error al cargar los datos");
+        }
+      } catch (err) {
+        setError("Error de conexión al cargar los datos");
+        console.error("Error fetching keywords:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [accountId, dateRange]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -125,6 +112,7 @@ const KeywordsList = ({ accountId, dateRange, navigation }: KeywordsListProps) =
       setSortField(field);
       setSortOrder('asc');
     }
+    setCurrentPage(1); // Reset to first page when sorting
   };
 
   const getSortIcon = (field: SortField) => {
@@ -153,18 +141,22 @@ const KeywordsList = ({ accountId, dateRange, navigation }: KeywordsListProps) =
   };
 
   // Filtrar keywords según navegación
-  const filteredKeywords = allKeywords.filter(keyword => {
-    const matchesSearch = keyword.keyword.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredKeywords = keywords.filter(keyword => {
+    // Filtrar por término de búsqueda
+    const matchesSearch = keyword.keyword_text.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Filtrar keywords negativas si no queremos mostrarlas
+    const isNotNegative = !keyword.is_negative;
     
     if (navigation.level === 'campaigns') {
-      return matchesSearch;
+      return matchesSearch && isNotNegative;
     } else if (navigation.level === 'adgroups' && navigation.selectedCampaign) {
-      return matchesSearch && keyword.campaignId === navigation.selectedCampaign;
+      return matchesSearch && isNotNegative && keyword.campaign_id === navigation.selectedCampaign;
     } else if (navigation.level === 'ads' && navigation.selectedAdGroup) {
-      return matchesSearch && keyword.adGroupId === navigation.selectedAdGroup;
+      return matchesSearch && isNotNegative && keyword.ad_group_id === navigation.selectedAdGroup;
     }
     
-    return matchesSearch;
+    return matchesSearch && isNotNegative;
   });
 
   const sortedKeywords = sortData(filteredKeywords);
@@ -181,18 +173,32 @@ const KeywordsList = ({ accountId, dateRange, navigation }: KeywordsListProps) =
     
     const labels = {
       BROAD: "Amplia",
-      PHRASE: "Frase",
+      PHRASE: "Frase", 
       EXACT: "Exacta"
     };
     
     return (
-      <Badge variant="outline" className={colors[matchType as keyof typeof colors]}>
-        {labels[matchType as keyof typeof labels]}
+      <Badge variant="outline" className={colors[matchType as keyof typeof colors] || "bg-gray-100 text-gray-800"}>
+        {labels[matchType as keyof typeof labels] || matchType}
       </Badge>
     );
   };
 
-  const getQualityScoreBadge = (score: number) => {
+  // Función para obtener el nombre de la campaña
+  const getCampaignName = (campaignId: string) => {
+    const campaign = campaigns.find(c => c.id === campaignId);
+    return campaign?.name || "Campaña desconocida";
+  };
+
+  // Función para obtener el nombre del grupo de anuncios
+  const getAdGroupName = (campaignId: string, adGroupId: string) => {
+    const campaign = campaigns.find(c => c.id === campaignId);
+    const adGroup = campaign?.ad_groups.find(ag => ag.ad_group_id === adGroupId);
+    return adGroup?.ad_group_name || "Grupo desconocido";
+  };
+
+  const getQualityScoreBadge = (score?: number) => {
+    if (!score) return <Badge variant="outline" className="bg-gray-100 text-gray-600">N/A</Badge>;
     if (score >= 8) return <Badge className="bg-green-500">{score}</Badge>;
     if (score >= 6) return <Badge className="bg-yellow-500">{score}</Badge>;
     return <Badge className="bg-red-500">{score}</Badge>;
@@ -214,6 +220,43 @@ const KeywordsList = ({ accountId, dateRange, navigation }: KeywordsListProps) =
     </TableHead>
   );
 
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold">Keywords</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin mr-2" />
+            <span>Cargando keywords...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold">Keywords</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <p className="text-red-500 mb-4">{error}</p>
+            <Button 
+              onClick={() => window.location.reload()} 
+              variant="outline"
+            >
+              Reintentar
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -224,97 +267,129 @@ const KeywordsList = ({ accountId, dateRange, navigation }: KeywordsListProps) =
             <Input
               placeholder="Buscar keywords..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1); // Reset to first page when searching
+              }}
               className="pl-8"
             />
           </div>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <SortableHeader field="keyword">Keyword</SortableHeader>
-                <SortableHeader field="matchType">Concordancia</SortableHeader>
-                {navigation.level === 'campaigns' && <SortableHeader field="campaignName">Campaña</SortableHeader>}
-                {(navigation.level === 'campaigns' || navigation.level === 'adgroups') && <SortableHeader field="adGroupName">Grupo de Anuncios</SortableHeader>}
-                <SortableHeader field="bid">Puja</SortableHeader>
-                <SortableHeader field="impressions">Impresiones</SortableHeader>
-                <SortableHeader field="clicks">Clics</SortableHeader>
-                <SortableHeader field="ctr">CTR</SortableHeader>
-                <SortableHeader field="cpc">CPC</SortableHeader>
-                <SortableHeader field="conversions">Conversiones</SortableHeader>
-                <SortableHeader field="cost">Coste</SortableHeader>
-                <SortableHeader field="qualityScore">Quality Score</SortableHeader>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {currentKeywords.map((keyword) => (
-                <TableRow key={keyword.id} className="hover:bg-muted/50">
-                  <TableCell className="font-medium">{keyword.keyword}</TableCell>
-                  <TableCell>{getMatchTypeBadge(keyword.matchType)}</TableCell>
-                  {navigation.level === 'campaigns' && <TableCell className="text-sm">{keyword.campaignName}</TableCell>}
-                  {(navigation.level === 'campaigns' || navigation.level === 'adgroups') && <TableCell className="text-sm">{keyword.adGroupName}</TableCell>}
-                  <TableCell>{formatCurrency(keyword.bid)}</TableCell>
-                  <TableCell>{keyword.impressions.toLocaleString()}</TableCell>
-                  <TableCell>{keyword.clicks.toLocaleString()}</TableCell>
-                  <TableCell>{keyword.ctr}%</TableCell>
-                  <TableCell>{formatCurrency(keyword.cpc)}</TableCell>
-                  <TableCell>{keyword.conversions}</TableCell>
-                  <TableCell>{formatCurrency(keyword.cost)}</TableCell>
-                  <TableCell>{getQualityScoreBadge(keyword.qualityScore)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-
-        {/* Paginación */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between mt-4">
-            <div className="text-sm text-muted-foreground">
-              Mostrando {startIndex + 1} a {Math.min(startIndex + itemsPerPage, sortedKeywords.length)} de {sortedKeywords.length} keywords
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Anterior
-              </Button>
-              
-              <div className="flex items-center gap-1">
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  const page = i + 1;
-                  return (
-                    <Button
-                      key={page}
-                      variant={currentPage === page ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => handlePageChange(page)}
-                      className="w-8 h-8 p-0"
-                    >
-                      {page}
-                    </Button>
-                  );
-                })}
-              </div>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-              >
-                Siguiente
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
+        {filteredKeywords.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">No se encontraron keywords</p>
           </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <SortableHeader field="keyword_text">Keyword</SortableHeader>
+                    <SortableHeader field="match_type">Concordancia</SortableHeader>
+                    {navigation.level === 'campaigns' && <SortableHeader field="campaign_name">Campaña</SortableHeader>}
+                    {(navigation.level === 'campaigns' || navigation.level === 'adgroups') && <SortableHeader field="ad_group_name">Grupo de Anuncios</SortableHeader>}
+                    <SortableHeader field="status">Estado</SortableHeader>
+                    <SortableHeader field="impressions">Impresiones</SortableHeader>
+                    <SortableHeader field="clicks">Clics</SortableHeader>
+                    <SortableHeader field="ctr">CTR</SortableHeader>
+                    <SortableHeader field="average_cpc_micros">CPC</SortableHeader>
+                    <SortableHeader field="conversions">Conversiones</SortableHeader>
+                    <SortableHeader field="cost_micros">Coste</SortableHeader>
+                    <SortableHeader field="quality_score">Quality Score</SortableHeader>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {currentKeywords.map((keyword) => (
+                    <TableRow key={`${keyword.customer_id}-${keyword.criterion_id}`} className="hover:bg-muted/50">
+                      <TableCell className="font-medium">{keyword.keyword_text}</TableCell>
+                      <TableCell>{getMatchTypeBadge(keyword.match_type)}</TableCell>
+                      {navigation.level === 'campaigns' && (
+                        <TableCell className="text-sm">{getCampaignName(keyword.campaign_id)}</TableCell>
+                      )}
+                      {(navigation.level === 'campaigns' || navigation.level === 'adgroups') && (
+                        <TableCell className="text-sm">{getAdGroupName(keyword.campaign_id, keyword.ad_group_id)}</TableCell>
+                      )}
+                      <TableCell>
+                        <Badge 
+                          variant={keyword.status === 'ENABLED' ? 'default' : 'secondary'}
+                          className={keyword.status === 'ENABLED' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}
+                        >
+                          {keyword.status === 'ENABLED' ? 'Activo' : keyword.status === 'PAUSED' ? 'Pausado' : keyword.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{keyword.impressions.toLocaleString()}</TableCell>
+                      <TableCell>{keyword.clicks.toLocaleString()}</TableCell>
+                      <TableCell>{(keyword.ctr * 100).toFixed(2)}%</TableCell>
+                      <TableCell>{formatCurrency(keyword.average_cpc_micros / 1000000)}</TableCell>
+                      <TableCell>{keyword.conversions}</TableCell>
+                      <TableCell>{formatCurrency(keyword.cost_micros / 1000000)}</TableCell>
+                      <TableCell>{getQualityScoreBadge(keyword.quality_score)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Paginación */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-muted-foreground">
+                  Mostrando {startIndex + 1} a {Math.min(startIndex + itemsPerPage, sortedKeywords.length)} de {sortedKeywords.length} keywords
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Anterior
+                  </Button>
+                  
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let page;
+                      if (totalPages <= 5) {
+                        page = i + 1;
+                      } else if (currentPage <= 3) {
+                        page = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        page = totalPages - 4 + i;
+                      } else {
+                        page = currentPage - 2 + i;
+                      }
+                      
+                      return (
+                        <Button
+                          key={page}
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handlePageChange(page)}
+                          className="w-8 h-8 p-0"
+                        >
+                          {page}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    Siguiente
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </CardContent>
     </Card>

@@ -30,6 +30,26 @@ async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
   };
 }
 
+export const getAccountCampaigns = async (customerId: string): Promise<Campaign[]> => {
+  try {
+    const response = await fetch(`/api/google-ads-full-data?customerId=${customerId}`, {
+      method: 'GET',
+      credentials: 'include', // para enviar cookies
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const fullData = await response.json();
+    return fullData.campaigns || [];
+  } catch (error) {
+    console.error('Error fetching campaigns:', error);
+    throw error;
+  }
+};
+
+
 // Auth API
 export const authApi = {
   // Start registration process with email
@@ -212,7 +232,30 @@ export const googleAdsApi = {
       };
     }
   },
+
+
+  // En googleAdsApi dentro de services/api.ts
+getFullAccountData: async (customerId: string): Promise<ApiResponse<any>> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/google-ads-full-data?customerId=${customerId}`, {
+      headers: {
+        "Authorization": `Bearer ${localStorage.getItem("token")}`,
+      },
+    });
+
+    return handleResponse<any>(response);
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error occurred",
+    };
+  }
+},
+
 };
+
+
+
 
 // AI Feedback API
 export const aiFeedbackApi = {

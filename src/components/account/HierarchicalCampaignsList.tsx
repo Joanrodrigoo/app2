@@ -1,12 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, ChevronRight, ExternalLink, ArrowUp, ArrowDown } from "lucide-react";
+import { Search, ChevronRight, ExternalLink, ArrowUp, ArrowDown, Loader2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { NavigationState } from "@/pages/AccountDetailPage";
 import AdDetailsModal from "./AdDetailsModal";
+import { googleAdsApi } from "@/services/api";
 
 interface HierarchicalCampaignsListProps {
   accountId: string;
@@ -18,140 +19,145 @@ interface HierarchicalCampaignsListProps {
 type SortField = string;
 type SortOrder = 'asc' | 'desc';
 
+interface Campaign {
+  id: string;
+  name: string;
+  status: string;
+  type: string;
+  budget: number;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  conversions: number;
+  ctr: number;
+  cpc: number;
+}
+
+interface AdGroup {
+  id: string;
+  name: string;
+  campaignId: string;
+  campaignName: string;
+  status: string;
+  bid: number;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  conversions: number;
+  ctr: number;
+  cpc: number;
+  qualityScore: number;
+}
+
+interface Ad {
+  id: string;
+  headline1: string;
+  headline2: string;
+  description: string;
+  adGroupId: string;
+  adGroupName: string;
+  status: string;
+  impressions: number;
+  clicks: number;
+  conversions: number;
+  ctr: number;
+  cpc: number;
+  finalUrl: string;
+}
+
 const HierarchicalCampaignsList = ({ accountId, dateRange, navigation, onNavigationChange }: HierarchicalCampaignsListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedAd, setSelectedAd] = useState<any>(null);
   const [isAdModalOpen, setIsAdModalOpen] = useState(false);
   const [sortField, setSortField] = useState<SortField>("");
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+  
+  // Estados para datos de la API
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [adGroups, setAdGroups] = useState<AdGroup[]>([]);
+  const [ads, setAds] = useState<Ad[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock data - campañas
-  const campaigns = [
-    {
-      id: "1",
-      name: "Campaña Verano 2024",
-      status: "ENABLED",
-      type: "SEARCH",
-      budget: 150,
-      spend: 142.50,
-      impressions: 45678,
-      clicks: 1234,
-      conversions: 45,
-      ctr: 2.7,
-      cpc: 0.12
-    },
-    {
-      id: "2", 
-      name: "Display - Awareness",
-      status: "ENABLED",
-      type: "DISPLAY",
-      budget: 300,
-      spend: 287.30,
-      impressions: 123456,
-      clicks: 2345,
-      conversions: 23,
-      ctr: 1.9,
-      cpc: 0.12
-    }
-  ];
+  // Función para cargar datos completos de la cuenta
+  const loadAccountData = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await googleAdsApi.getFullAccountData(accountId);
+      
+      if (response.success && response.data) {
+        // Procesar campañas
+        if (response.data.campaigns) {
+          setCampaigns(response.data.campaigns.map((campaign: any) => ({
+            id: campaign.id || campaign.campaign_id,
+            name: campaign.name || campaign.campaign_name,
+            status: campaign.status,
+            type: campaign.type || campaign.campaign_type,
+            budget: parseFloat(campaign.budget || campaign.daily_budget || '0'),
+            spend: parseFloat(campaign.spend || campaign.cost || '0'),
+            impressions: parseInt(campaign.impressions || '0'),
+            clicks: parseInt(campaign.clicks || '0'),
+            conversions: parseFloat(campaign.conversions || '0'),
+            ctr: parseFloat(campaign.ctr || '0'),
+            cpc: parseFloat(campaign.cpc || campaign.avg_cpc || '0')
+          })));
+        }
 
-  // Mock data - grupos de anuncios
-  const adGroups = [
-    {
-      id: "1",
-      name: "Productos Verano - Camisetas",
-      campaignId: "1",
-      campaignName: "Campaña Verano 2024",
-      status: "ENABLED",
-      bid: 0.85,
-      spend: 45.30,
-      impressions: 12345,
-      clicks: 234,
-      conversions: 12,
-      ctr: 1.9,
-      cpc: 0.19,
-      qualityScore: 7
-    },
-    {
-      id: "2",
-      name: "Productos Verano - Shorts",
-      campaignId: "1",
-      campaignName: "Campaña Verano 2024", 
-      status: "ENABLED",
-      bid: 0.75,
-      spend: 67.20,
-      impressions: 18976,
-      clicks: 445,
-      conversions: 28,
-      ctr: 2.3,
-      cpc: 0.15,
-      qualityScore: 8
-    },
-    {
-      id: "3",
-      name: "Awareness - General",
-      campaignId: "2",
-      campaignName: "Display - Awareness",
-      status: "ENABLED", 
-      bid: 0.05,
-      spend: 123.45,
-      impressions: 45678,
-      clicks: 567,
-      conversions: 5,
-      ctr: 1.2,
-      cpc: 0.22,
-      qualityScore: 6
-    }
-  ];
+        // Procesar grupos de anuncios
+        if (response.data.adGroups) {
+          setAdGroups(response.data.adGroups.map((adGroup: any) => ({
+            id: adGroup.id || adGroup.ad_group_id,
+            name: adGroup.name || adGroup.ad_group_name,
+            campaignId: adGroup.campaignId || adGroup.campaign_id,
+            campaignName: adGroup.campaignName || adGroup.campaign_name,
+            status: adGroup.status,
+            bid: parseFloat(adGroup.bid || adGroup.cpc_bid || '0'),
+            spend: parseFloat(adGroup.spend || adGroup.cost || '0'),
+            impressions: parseInt(adGroup.impressions || '0'),
+            clicks: parseInt(adGroup.clicks || '0'),
+            conversions: parseFloat(adGroup.conversions || '0'),
+            ctr: parseFloat(adGroup.ctr || '0'),
+            cpc: parseFloat(adGroup.cpc || adGroup.avg_cpc || '0'),
+            qualityScore: parseInt(adGroup.qualityScore || adGroup.quality_score || '0')
+          })));
+        }
 
-  // Mock data - anuncios
-  const ads = [
-    {
-      id: "1",
-      headline1: "Camisetas de Verano 2024",
-      headline2: "Descuentos hasta 50%",
-      description: "Encuentra las mejores camisetas para este verano. Envío gratis a partir de 50€.",
-      adGroupId: "1",
-      adGroupName: "Productos Verano - Camisetas",
-      status: "ENABLED",
-      impressions: 8765,
-      clicks: 123,
-      conversions: 8,
-      ctr: 1.4,
-      cpc: 0.18,
-      finalUrl: "https://ejemplo.com/camisetas-verano"
-    },
-    {
-      id: "2",
-      headline1: "Shorts Modernos",
-      headline2: "Calidad Premium",
-      description: "Shorts cómodos y modernos para el día a día. Múltiples colores disponibles.",
-      adGroupId: "2",
-      adGroupName: "Productos Verano - Shorts",
-      status: "ENABLED",
-      impressions: 12456,
-      clicks: 287,
-      conversions: 19,
-      ctr: 2.3,
-      cpc: 0.23,
-      finalUrl: "https://ejemplo.com/shorts"
-    },
-    {
-      id: "3",
-      headline1: "Tu Marca Favorita",
-      headline2: "Nuevos Productos",
-      description: "Descubre nuestra nueva colección de ropa casual para esta temporada.",
-      adGroupId: "3",
-      adGroupName: "Awareness - General",
-      status: "PAUSED",
-      impressions: 5432,
-      clicks: 67,
-      conversions: 1,
-      ctr: 1.2,
-      cpc: 0.45,
-      finalUrl: "https://ejemplo.com/nueva-coleccion"
+        // Procesar anuncios
+        if (response.data.ads) {
+          setAds(response.data.ads.map((ad: any) => ({
+            id: ad.id || ad.ad_id,
+            headline1: ad.headline1 || ad.headlines?.[0] || '',
+            headline2: ad.headline2 || ad.headlines?.[1] || '',
+            description: ad.description || ad.descriptions?.[0] || '',
+            adGroupId: ad.adGroupId || ad.ad_group_id,
+            adGroupName: ad.adGroupName || ad.ad_group_name,
+            status: ad.status,
+            impressions: parseInt(ad.impressions || '0'),
+            clicks: parseInt(ad.clicks || '0'),
+            conversions: parseFloat(ad.conversions || '0'),
+            ctr: parseFloat(ad.ctr || '0'),
+            cpc: parseFloat(ad.cpc || ad.avg_cpc || '0'),
+            finalUrl: ad.finalUrl || ad.final_url || ''
+          })));
+        }
+      } else {
+        setError(response.error || 'Error al cargar los datos de la cuenta');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error desconocido');
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  // Cargar datos cuando cambie el accountId o dateRange
+  useEffect(() => {
+    if (accountId) {
+      loadAccountData();
+    }
+  }, [accountId, dateRange]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -238,6 +244,30 @@ const HierarchicalCampaignsList = ({ accountId, dateRange, navigation, onNavigat
     </TableHead>
   );
 
+  // Mostrar estado de carga
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Cargando datos...</span>
+      </div>
+    );
+  }
+
+  // Mostrar error
+  if (error) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">Error: {error}</p>
+          <Button onClick={loadAccountData} variant="outline">
+            Reintentar
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   // Renderizar campañas
   if (navigation.level === 'campaigns') {
     const filteredCampaigns = campaigns.filter(campaign =>
@@ -258,6 +288,9 @@ const HierarchicalCampaignsList = ({ accountId, dateRange, navigation, onNavigat
               className="pl-8"
             />
           </div>
+          <Button onClick={loadAccountData} variant="outline" size="sm">
+            Actualizar
+          </Button>
         </div>
 
         <div className="overflow-x-auto">
@@ -295,7 +328,7 @@ const HierarchicalCampaignsList = ({ accountId, dateRange, navigation, onNavigat
                   <TableCell>{formatCurrency(campaign.spend)}</TableCell>
                   <TableCell>{campaign.impressions.toLocaleString()}</TableCell>
                   <TableCell>{campaign.clicks.toLocaleString()}</TableCell>
-                  <TableCell>{campaign.ctr}%</TableCell>
+                  <TableCell>{campaign.ctr.toFixed(2)}%</TableCell>
                   <TableCell>{formatCurrency(campaign.cpc)}</TableCell>
                   <TableCell>{campaign.conversions}</TableCell>
                   <TableCell>
@@ -368,7 +401,7 @@ const HierarchicalCampaignsList = ({ accountId, dateRange, navigation, onNavigat
                   <TableCell>{formatCurrency(adGroup.spend)}</TableCell>
                   <TableCell>{adGroup.impressions.toLocaleString()}</TableCell>
                   <TableCell>{adGroup.clicks.toLocaleString()}</TableCell>
-                  <TableCell>{adGroup.ctr}%</TableCell>
+                  <TableCell>{adGroup.ctr.toFixed(2)}%</TableCell>
                   <TableCell>{formatCurrency(adGroup.cpc)}</TableCell>
                   <TableCell>{adGroup.conversions}</TableCell>
                   <TableCell>{getQualityScoreBadge(adGroup.qualityScore)}</TableCell>
@@ -440,7 +473,7 @@ const HierarchicalCampaignsList = ({ accountId, dateRange, navigation, onNavigat
                   <TableCell>{getStatusBadge(ad.status)}</TableCell>
                   <TableCell>{ad.impressions.toLocaleString()}</TableCell>
                   <TableCell>{ad.clicks.toLocaleString()}</TableCell>
-                  <TableCell>{ad.ctr}%</TableCell>
+                  <TableCell>{ad.ctr.toFixed(2)}%</TableCell>
                   <TableCell>{formatCurrency(ad.cpc)}</TableCell>
                   <TableCell>{ad.conversions}</TableCell>
                   <TableCell>
