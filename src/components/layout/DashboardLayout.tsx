@@ -11,12 +11,13 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const userName = storedUser ? JSON.parse(storedUser).name : "Usuario";
   
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar className="hidden md:block w-64 border-r" />
-      
-      <div className="flex flex-col flex-1 w-full">
+    <div className="min-h-screen bg-background">
+      {/* Sidebar fixa */}
+      <Sidebar className="w-64 h-screen fixed top-0 left-0 z-50 border-r" />
+
+      {/* Contingut amb padding esquerre per no tapar el sidebar */}
+      <div className="flex flex-col flex-1 w-full pl-64">
         <DashboardHeader userName={userName} />
-        
         <main className="flex-1 overflow-y-auto p-6">
           {children}
         </main>
@@ -24,5 +25,6 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     </div>
   );
 };
+
 
 export default DashboardLayout;

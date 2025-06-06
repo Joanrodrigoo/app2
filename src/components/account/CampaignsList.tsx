@@ -63,21 +63,23 @@ const CampaignsList = ({ campaigns }: CampaignsListProps) => {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex justify-between items-center">
-          <CardTitle>Campañas ({filteredCampaigns.length})</CardTitle>
-          <div className="relative w-64">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar campañas..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8"
-            />
-          </div>
-        </div>
-      </CardHeader>
+    <Card className="bg-white">
+  <CardHeader className="border-b">
+    <div className="flex items-center justify-between">
+      <CardTitle className="text-xl font-semibold text-gray-900">
+        Campañas ({filteredCampaigns.length})
+      </CardTitle>
+      <div className="relative w-64">
+        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Buscar campañas..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-8"
+        />
+      </div>
+    </div>
+  </CardHeader>
       <CardContent>
         <Table>
           <TableHeader>

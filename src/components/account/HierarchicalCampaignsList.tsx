@@ -7,7 +7,9 @@ import { Search, ChevronRight, ExternalLink, ArrowUp, ArrowDown, Loader2 } from 
 import { formatCurrency } from "@/lib/utils";
 import { NavigationState } from "@/pages/AccountDetailPage";
 import AdDetailsModal from "./AdDetailsModal";
-import { googleAdsApi } from "@/services/api";
+import { getCampaignMetricsByCustomer } from '@/services/api';
+import { Campaign } from "@/types/index";
+
 
 interface HierarchicalCampaignsListProps {
   accountId: string;
@@ -19,19 +21,7 @@ interface HierarchicalCampaignsListProps {
 type SortField = string;
 type SortOrder = 'asc' | 'desc';
 
-interface Campaign {
-  id: string;
-  name: string;
-  status: string;
-  type: string;
-  budget: number;
-  spend: number;
-  impressions: number;
-  clicks: number;
-  conversions: number;
-  ctr: number;
-  cpc: number;
-}
+
 
 interface AdGroup {
   id: string;
@@ -80,84 +70,42 @@ const HierarchicalCampaignsList = ({ accountId, dateRange, navigation, onNavigat
   const [error, setError] = useState<string | null>(null);
 
   // Función para cargar datos completos de la cuenta
-  const loadAccountData = async () => {
-    setLoading(true);
-    setError(null);
+const loadCampaignMetrics = async () => {
+  setLoading(true);
+  setError(null);
+  
+  try {
+    const data = await getCampaignMetricsByCustomer(accountId);
     
-    try {
-      const response = await googleAdsApi.getFullAccountData(accountId);
-      
-      if (response.success && response.data) {
-        // Procesar campañas
-        if (response.data.campaigns) {
-          setCampaigns(response.data.campaigns.map((campaign: any) => ({
-            id: campaign.id || campaign.campaign_id,
-            name: campaign.name || campaign.campaign_name,
-            status: campaign.status,
-            type: campaign.type || campaign.campaign_type,
-            budget: parseFloat(campaign.budget || campaign.daily_budget || '0'),
-            spend: parseFloat(campaign.spend || campaign.cost || '0'),
-            impressions: parseInt(campaign.impressions || '0'),
-            clicks: parseInt(campaign.clicks || '0'),
-            conversions: parseFloat(campaign.conversions || '0'),
-            ctr: parseFloat(campaign.ctr || '0'),
-            cpc: parseFloat(campaign.cpc || campaign.avg_cpc || '0')
-          })));
-        }
+    // Suponiendo que data es un array de campañas con la estructura correcta:
+    setCampaigns(data.map((campaign: any) => ({
+      id: campaign.id || campaign.campaign_id,
+      name: campaign.name || campaign.campaign_name,
+      status: campaign.status,
+      type: campaign.type || campaign.campaign_type,
+      budget: parseFloat(campaign.budget || campaign.daily_budget || '0'),
+      spend: parseFloat(campaign.spend || campaign.cost || '0'),
+      impressions: parseInt(campaign.impressions || '0'),
+      clicks: parseInt(campaign.clicks || '0'),
+      conversions: parseFloat(campaign.conversions || '0'),
+      ctr: parseFloat(campaign.ctr || '0'),
+      cpc: parseFloat(campaign.cpc || campaign.avg_cpc || '0')
+    })));
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Error desconocido');
+  } finally {
+    setLoading(false);
+  }
+};
 
-        // Procesar grupos de anuncios
-        if (response.data.adGroups) {
-          setAdGroups(response.data.adGroups.map((adGroup: any) => ({
-            id: adGroup.id || adGroup.ad_group_id,
-            name: adGroup.name || adGroup.ad_group_name,
-            campaignId: adGroup.campaignId || adGroup.campaign_id,
-            campaignName: adGroup.campaignName || adGroup.campaign_name,
-            status: adGroup.status,
-            bid: parseFloat(adGroup.bid || adGroup.cpc_bid || '0'),
-            spend: parseFloat(adGroup.spend || adGroup.cost || '0'),
-            impressions: parseInt(adGroup.impressions || '0'),
-            clicks: parseInt(adGroup.clicks || '0'),
-            conversions: parseFloat(adGroup.conversions || '0'),
-            ctr: parseFloat(adGroup.ctr || '0'),
-            cpc: parseFloat(adGroup.cpc || adGroup.avg_cpc || '0'),
-            qualityScore: parseInt(adGroup.qualityScore || adGroup.quality_score || '0')
-          })));
-        }
 
-        // Procesar anuncios
-        if (response.data.ads) {
-          setAds(response.data.ads.map((ad: any) => ({
-            id: ad.id || ad.ad_id,
-            headline1: ad.headline1 || ad.headlines?.[0] || '',
-            headline2: ad.headline2 || ad.headlines?.[1] || '',
-            description: ad.description || ad.descriptions?.[0] || '',
-            adGroupId: ad.adGroupId || ad.ad_group_id,
-            adGroupName: ad.adGroupName || ad.ad_group_name,
-            status: ad.status,
-            impressions: parseInt(ad.impressions || '0'),
-            clicks: parseInt(ad.clicks || '0'),
-            conversions: parseFloat(ad.conversions || '0'),
-            ctr: parseFloat(ad.ctr || '0'),
-            cpc: parseFloat(ad.cpc || ad.avg_cpc || '0'),
-            finalUrl: ad.finalUrl || ad.final_url || ''
-          })));
-        }
-      } else {
-        setError(response.error || 'Error al cargar los datos de la cuenta');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error desconocido');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Cargar datos cuando cambie el accountId o dateRange
   useEffect(() => {
     if (accountId) {
-      loadAccountData();
+      loadCampaignMetrics();
     }
-  }, [accountId, dateRange]);
+  }, [accountId]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -206,20 +154,21 @@ const HierarchicalCampaignsList = ({ accountId, dateRange, navigation, onNavigat
     }
   };
 
-  const getTypeBadge = (type: string) => {
-    const colors = {
-      SEARCH: "bg-blue-100 text-blue-800",
-      DISPLAY: "bg-purple-100 text-purple-800", 
-      SHOPPING: "bg-green-100 text-green-800",
-      VIDEO: "bg-red-100 text-red-800"
-    };
-    
-    return (
-      <Badge variant="outline" className={colors[type as keyof typeof colors]}>
-        {type}
-      </Badge>
-    );
-  };
+ const getTypeBadge = (type: string) => {
+  switch (type) {
+    case "1":
+      return <Badge className="bg-blue-100 text-blue-800">SEARCH</Badge>;
+    case "2":
+      return <Badge className="bg-purple-100 text-purple-800">DISPLAY</Badge>;
+    case "3":
+      return <Badge className="bg-green-100 text-green-800">SHOPPING</Badge>;
+    case "4":
+      return <Badge className="bg-red-100 text-red-800">VIDEO</Badge>;
+    default:
+      return <Badge variant="secondary">Desconocido</Badge>;
+  }
+};
+   
 
   const getQualityScoreBadge = (score: number) => {
     if (score >= 8) return <Badge className="bg-green-500">{score}</Badge>;
@@ -260,7 +209,7 @@ const HierarchicalCampaignsList = ({ accountId, dateRange, navigation, onNavigat
       <div className="flex items-center justify-center p-8">
         <div className="text-center">
           <p className="text-red-600 mb-4">Error: {error}</p>
-          <Button onClick={loadAccountData} variant="outline">
+          <Button onClick={loadCampaignMetrics} variant="outline">
             Reintentar
           </Button>
         </div>
@@ -288,7 +237,7 @@ const HierarchicalCampaignsList = ({ accountId, dateRange, navigation, onNavigat
               className="pl-8"
             />
           </div>
-          <Button onClick={loadAccountData} variant="outline" size="sm">
+          <Button onClick={loadCampaignMetrics} variant="outline" size="sm">
             Actualizar
           </Button>
         </div>

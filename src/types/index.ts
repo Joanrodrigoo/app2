@@ -36,6 +36,7 @@ export interface Campaign {
   accountId: string;
   campaignId: string;
   name: string;
+  type: 'SEARCH' | 'DISPLAY' | 'SHOPPING' | 'VIDEO';
   status: 'ENABLED' | 'PAUSED' | 'REMOVED';
   budget: number;
   startDate: string;
@@ -79,6 +80,35 @@ export interface AiFeedback {
   feedback: string;
   recommendations: string[];
   createdAt: string;
+}
+
+export interface Recomendacion {
+  id: number;
+  customer_id: number;
+  titulo: string;
+  descripcion: string;
+  categoria: string;
+  prioridad: string;
+  impacto_estimado: string;
+  tipo_objeto: string;
+  objeto_id: number | null;
+  estado: 'pendiente' | 'aplicada' | 'rechazada' | 'fallida';
+  fecha_aplicacion: string | null;
+  fecha_creacion: string;
+   resultado?: {
+    estado: "improved" | "no_change" | "worsened";
+    mejora_real: string;
+    periodo_comparacion: string;
+    variacion_kpi: number;
+  };
+  detalle?: {
+    justificacion: string;
+    kpi_objetivo: string;
+    valor_actual: string;
+    valor_esperado: string;
+  };
+  nombre_objeto?: string;
+
 }
 
 // API response types

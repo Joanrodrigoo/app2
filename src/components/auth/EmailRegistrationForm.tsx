@@ -141,25 +141,10 @@ const EmailRegistrationForm = () => {
               Se ha enviado un correo a {email}
             </DialogDescription>
           </DialogHeader>
+          
           <div className="mb-4 mt-2">
             Comprueba tu correo eléctronico.
           </div>
-          {verificationToken ? (
-            <div className="p-3 bg-muted rounded-md mb-4 text-center font-mono overflow-auto">
-              {verificationToken}
-            </div>
-          ) : (
-            <div className="p-3 bg-red-100 rounded-md mb-4 text-center">
-              No se ha generado un token válido
-            </div>
-          )}
-          <Button 
-            className="w-full bg-adops-600 hover:bg-adops-700" 
-            onClick={handleCompleteRegistration}
-            disabled={!verificationToken}
-          >
-            Completar registro
-          </Button>
         </DialogContent>
       </Dialog>
     </>

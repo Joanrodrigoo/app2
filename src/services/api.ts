@@ -1,78 +1,48 @@
+import { ApiResponse, AuthResponse, User, GoogleAdsAccount, Campaign, AiFeedback,Recomendacion } from "@/types";
 
-import { ApiResponse, AuthResponse, User, GoogleAdsAccount, Campaign, AiFeedback } from "@/types";
-
-// Base API URL - in a real app, this would be an environment variable
+// Base API URL - usar env var en prod preferiblemente
 const API_BASE_URL = "/api";
 
-// Helper function for handling API responses
+const getAuthHeaders = () => ({
+  "Authorization": `Bearer ${localStorage.getItem("token") || ""}`,
+  "Content-Type": "application/json",
+});
+
+// Helper para manejar respuesta
 async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
   if (!response.ok) {
-    // Try to parse the error response
     try {
       const errorData = await response.json();
       return {
         success: false,
-        error: errorData.message || `Error: ${response.status} ${response.statusText}`
+        error: errorData.message || `Error: ${response.status} ${response.statusText}`,
       };
-    } catch (e) {
-      // If we can't parse the error, return a generic error
+    } catch {
       return {
         success: false,
-        error: `Error: ${response.status} ${response.statusText}`
+        error: `Error: ${response.status} ${response.statusText}`,
       };
     }
   }
-  
   const data = await response.json();
-  return {
-    success: true,
-    data
-  };
+  return { success: true, data };
 }
-
-export const getAccountCampaigns = async (customerId: string): Promise<Campaign[]> => {
-  try {
-    const response = await fetch(`/api/google-ads-full-data?customerId=${customerId}`, {
-      method: 'GET',
-      credentials: 'include', // para enviar cookies
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const fullData = await response.json();
-    return fullData.campaigns || [];
-  } catch (error) {
-    console.error('Error fetching campaigns:', error);
-    throw error;
-  }
-};
-
 
 // Auth API
 export const authApi = {
-  // Start registration process with email
   initiateRegistration: async (email: string): Promise<ApiResponse<{ message: string }>> => {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/register/initiate`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
-      
-      return handleResponse<{ message: string }>(response);
+      return handleResponse(response);
     } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error occurred",
-      };
+      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
     }
   },
-  
-  // Complete registration with token and user details
+
   completeRegistration: async (
     token: string,
     email: string,
@@ -82,259 +52,275 @@ export const authApi = {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/register/complete`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, email, name, password }),
       });
-      
-      return handleResponse<AuthResponse>(response);
+      return handleResponse(response);
     } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error occurred",
-      };
+      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
     }
   },
-  
-  // Login with email and password
+
   login: async (email: string, password: string): Promise<ApiResponse<AuthResponse>> => {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      
-      return handleResponse<AuthResponse>(response);
+      return handleResponse(response);
     } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error occurred",
-      };
+      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
     }
   },
-  
-  // Logout
+
   logout: async (): Promise<ApiResponse<{ message: string }>> => {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/logout`, {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${localStorage.getItem("token")}`,
-        },
+        headers: getAuthHeaders(),
       });
-      
-      return handleResponse<{ message: string }>(response);
+      return handleResponse(response);
     } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error occurred",
-      };
+      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
     }
   },
 };
 
 // Google Ads API
 export const googleAdsApi = {
-  // Get OAuth URL for connecting a new account
   getOAuthUrl: async (): Promise<ApiResponse<{ url: string }>> => {
     try {
       const response = await fetch(`${API_BASE_URL}/google-ads/oauth-url`, {
-        headers: {
-          "Authorization": `Bearer ${localStorage.getItem("token")}`,
-        },
+        headers: getAuthHeaders(),
       });
-      
-      return handleResponse<{ url: string }>(response);
+      return handleResponse(response);
     } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error occurred",
-      };
+      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
     }
   },
-  
-  // Handle OAuth callback with code
+
   handleOAuthCallback: async (code: string): Promise<ApiResponse<GoogleAdsAccount>> => {
     try {
       const response = await fetch(`${API_BASE_URL}/google-ads/oauth-callback`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("token")}`,
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ code }),
       });
-      
-      return handleResponse<GoogleAdsAccount>(response);
+      return handleResponse(response);
     } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error occurred",
-      };
+      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
     }
   },
-  
-  // Get all connected accounts for current user
+
   getAccounts: async (): Promise<ApiResponse<GoogleAdsAccount[]>> => {
     try {
       const response = await fetch(`${API_BASE_URL}/google-ads/accounts`, {
-        headers: {
-          "Authorization": `Bearer ${localStorage.getItem("token")}`,
-        },
+        headers: getAuthHeaders(),
       });
-      
-      return handleResponse<GoogleAdsAccount[]>(response);
+      return handleResponse(response);
     } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error occurred",
-      };
+      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
     }
   },
-  
-  // Sync account data (trigger manual sync)
+
   syncAccount: async (accountId: string): Promise<ApiResponse<{ message: string }>> => {
     try {
       const response = await fetch(`${API_BASE_URL}/google-ads/accounts/${accountId}/sync`, {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${localStorage.getItem("token")}`,
-        },
+        headers: getAuthHeaders(),
       });
-      
-      return handleResponse<{ message: string }>(response);
+      return handleResponse(response);
     } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error occurred",
-      };
+      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
     }
   },
-  
-  // Get campaigns for an account
+
   getCampaigns: async (accountId: string): Promise<ApiResponse<Campaign[]>> => {
     try {
       const response = await fetch(`${API_BASE_URL}/google-ads/accounts/${accountId}/campaigns`, {
-        headers: {
-          "Authorization": `Bearer ${localStorage.getItem("token")}`,
-        },
+        headers: getAuthHeaders(),
       });
-      
-      return handleResponse<Campaign[]>(response);
+      return handleResponse(response);
     } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error occurred",
-      };
+      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
     }
   },
 
-
-  // En googleAdsApi dentro de services/api.ts
-getFullAccountData: async (customerId: string): Promise<ApiResponse<any>> => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/google-ads-full-data?customerId=${customerId}`, {
-      headers: {
-        "Authorization": `Bearer ${localStorage.getItem("token")}`,
-      },
-    });
-
-    return handleResponse<any>(response);
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error occurred",
-    };
-  }
-},
-
+  getFullAccountData: async (customerId: string): Promise<ApiResponse<any>> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/google-ads-full-data?customerId=${customerId}`, {
+        headers: getAuthHeaders(),
+      });
+      return handleResponse(response);
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  },
 };
-
-
-
 
 // AI Feedback API
 export const aiFeedbackApi = {
-  // Get AI feedback for a campaign
   getCampaignFeedback: async (campaignId: string): Promise<ApiResponse<AiFeedback>> => {
     try {
       const response = await fetch(`${API_BASE_URL}/ai-feedback/campaigns/${campaignId}`, {
-        headers: {
-          "Authorization": `Bearer ${localStorage.getItem("token")}`,
-        },
+        headers: getAuthHeaders(),
       });
-      
-      return handleResponse<AiFeedback>(response);
+      return handleResponse(response);
     } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error occurred",
-      };
+      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
     }
   },
-  
-  // Generate new AI feedback for a campaign
+
   generateCampaignFeedback: async (campaignId: string): Promise<ApiResponse<AiFeedback>> => {
     try {
       const response = await fetch(`${API_BASE_URL}/ai-feedback/campaigns/${campaignId}/generate`, {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${localStorage.getItem("token")}`,
-        },
+        headers: getAuthHeaders(),
       });
-      
-      return handleResponse<AiFeedback>(response);
+      return handleResponse(response);
     } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error occurred",
-      };
+      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
     }
   },
 };
 
 // User API
 export const userApi = {
-  // Get current user profile
   getCurrentUser: async (): Promise<ApiResponse<User>> => {
     try {
       const response = await fetch(`${API_BASE_URL}/users/me`, {
-        headers: {
-          "Authorization": `Bearer ${localStorage.getItem("token")}`,
-        },
+        headers: getAuthHeaders(),
       });
-      
-      return handleResponse<User>(response);
+      return handleResponse(response);
     } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error occurred",
-      };
+      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
     }
   },
-  
-  // Update user profile
+
   updateProfile: async (userData: Partial<User>): Promise<ApiResponse<User>> => {
     try {
       const response = await fetch(`${API_BASE_URL}/users/me`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("token")}`,
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify(userData),
       });
-      
-      return handleResponse<User>(response);
+      return handleResponse(response);
     } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error occurred",
-      };
+      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
     }
   },
+};
+
+export async function getCampaignMetrics(customerId: string) {
+  const url = `${API_BASE_URL}/metrics/${customerId}`;
+
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`Error al obtener métricas: ${response.statusText}`);
+  }
+
+  return await response.json();
+}
+
+export async function getCampaignMetricsByCustomer(customerId: string) {
+  const url = `${API_BASE_URL}/campaign-metrics/${customerId}`;
+
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`Error al obtener métricas de campañas: ${response.statusText}`);
+  }
+
+  return await response.json();
+}
+
+export async function fetchKeywords(customerId: string, dateRange?: { from: Date; to: Date }) {
+  if (!customerId) throw new Error('customerId es requerido');
+
+  let url = `${API_BASE_URL}/keywords/${customerId}`;
+
+  if (dateRange) {
+    const from = dateRange.from.toISOString().split('T')[0];
+    const to = dateRange.to.toISOString().split('T')[0];;
+    url += `?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+  }
+
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+  return await response.json();
+}
+
+export async function fetchRecomendaciones(customer_id: number): Promise<Recomendacion[]> {
+  if (!customer_id) {
+    throw new Error('El parámetro customer_id es requerido');
+  }
+
+  const response = await fetch(`/api/recomendaciones/${customer_id}`);
+
+  if (!response.ok) {
+    throw new Error(`Error al obtener las recomendaciones: ${response.statusText}`);
+  }
+
+  const data: Recomendacion[] = await response.json();
+  return data;
+}
+
+export async function fetchAppliedRecommendations(customer_id: number): Promise<Recomendacion[]> {
+  if (!customer_id) {
+    throw new Error('El parámetro customer_id es requerido');
+  }
+
+  const response = await fetch(`/api/recomendaciones-aplicadas/${customer_id}`);
+
+  if (!response.ok) {
+    throw new Error(`Error al obtener las recomendaciones aplicadas: ${response.statusText}`);
+  }
+
+  const data: Recomendacion[] = await response.json();
+  return data;
+}
+export async function applyRecommendation(
+  id: number,
+  resultado: {
+    estado: "improved" | "no_change" | "worsened";
+    mejora_real: string;
+    periodo_comparacion: string;
+    variacion_kpi: number;
+  }
+): Promise<{ message: string; id: number }> {
+  if (!id) {
+    throw new Error('El parámetro id es requerido');
+  }
+
+  const response = await fetch(`/api/recomendaciones/${id}/aplicar`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ resultado }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData?.message || 'Error al aplicar la recomendación');
+  }
+
+  return await response.json();
+}
+
+
+export const fetchGoogleAccounts = async () => {
+  const response = await fetch("/api/google-accounts", {
+    credentials: "include", // Para enviar cookies si usas sesiones
+  });
+
+  if (!response.ok) {
+    throw new Error("Error al obtener las cuentas de Google Ads");
+  }
+
+  const data = await response.json();
+  
+  return data.accounts;
 };
